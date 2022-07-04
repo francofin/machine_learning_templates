@@ -78,25 +78,133 @@ class Mlgorithmic:
             
         return data
     
-    def get_data_statistics(self, dataframe, rolling_window=20, index=''):
+    def get_data_statistics(self, dataframe, index, periodicity, rolling_window=20):
         """
         Requires numerical data, if non numerical data is provided then the data will be discarded and not used. if you wish to use 
         non numerical data in the case of NLP, first use vectorization or some other method which encodes text data. 
+        Must provide an index name, which is of type Datetime.
+        Periodicity is either monthly, weekly, daily. this argument must be provided.
+        Needs a Datetime Index to calculate the statistics of a time series. Use load data method passing in you index name.
+        This method will convert non datetime indices to datetime if not already datetime.
         """
 
-        try:
-            raw_data = dataframe
-            data_with_returns = self.get_returns(raw_data)
-            data_with_returns["1+return"] = data_with_returns+1
-            data_with_standard_deviation = data_with_returns.rolling(window=rolling_window).std()
-            data_with_rolling_returns = data_with_standard_deviation["1+return"].rolling(window=rolling_window).cumprod()-1
-            return data_with_rolling_returns
-        except:
-            raise TypeError("unsupported operand type(s) for /: 'str' and 'float', check columns after loading data \n" 
-                            "this error possibly occurs because one or more of the columns in the dataset has strings as its type")
+        if not index:
+            raise ValueError("Index argument must be provided")
 
+        if not periodicity:
+            raise ValueError("Periodicity must be provided, it is one of daily, monthly or weekly. If data is daily it is returned as is, else if peridicity is chosen to monthly or weekly when data provided is daily, \
+            it returns a time series of the data where the last data point is returned as the end of month value or end of week value.")
 
+        if periodicity == 'monthly':
+            try:
+                raw_data = dataframe.reset_index().groupby([dataframe.index.year, dataframe.index.month], as_index=False).last().set_index(index)
+                data_adjusted = self.get_returns(raw_data)
+                data_adjusted["returns_plus_one"] = data_adjusted["Returns"]+1
+                data_adjusted["quarterly_returns"] = data_adjusted.rolling(window=3).apply(self.np.prod, raw=True) -1
+                try:
+                    data_adjusted["yearly_returns"] = data_adjusted["returns_plus_one"].rolling(window=12).apply(self.np.prod, raw=True) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["triyearly_returns"] = (data_adjusted["returns_plus_one"].rolling(window=36).apply(self.np.prod, raw=True)**(1/3)) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["tenyear_returns"] = (data_adjusted["returns_plus_one"].rolling(window=120).apply(self.np.prod, raw=True)**(1/10)) -1
+                except:
+                    pass
 
+                data_adjusted["volatility_yr"] = data_adjusted['Returns'].rolling(window=12).std() * self.np.sqrt(12)
+                try:
+                    data_adjusted["volatility_2yr"] = data_adjusted['Returns'].rolling(window=24).std() * self.np.sqrt(24)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_3yr"] = data_adjusted['Returns'].rolling(window=36).std() * self.np.sqrt(36)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_10yr"] = data_adjusted['Returns'].rolling(window=120).std() * self.np.sqrt(120)
+                except:
+                    pass
+            except:
+                raise TypeError("Please check the frequency of the data provided")
+
+            return data_adjusted
+        elif periodicity == "weekly":
+            try:
+                raw_data = dataframe.reset_index().groupby([dataframe.index.year, dataframe.index.month, dataframe.index.week], as_index=False).last().set_index(index)
+                data_adjusted = self.get_returns(raw_data)
+                data_adjusted["returns_plus_one"] = data_adjusted["Returns"]+1
+                data_adjusted["quarterly_returns"] = data_adjusted.rolling(window=13).apply(self.np.prod, raw=True) -1
+                try:
+                    data_adjusted["yearly_returns"] = data_adjusted["returns_plus_one"].rolling(window=52).apply(self.np.prod, raw=True) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["triyearly_returns"] = (data_adjusted["returns_plus_one"].rolling(window=156).apply(self.np.prod, raw=True)**(1/3)) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["tenyear_returns"] = (data_adjusted["returns_plus_one"].rolling(window=520).apply(self.np.prod, raw=True)**(1/10)) -1
+                except:
+                    pass
+
+                data_adjusted["volatility_yr"] = data_adjusted['Returns'].rolling(window=52).std() * self.np.sqrt(52)
+                try:
+                    data_adjusted["volatility_2yr"] = data_adjusted['Returns'].rolling(window=104).std() * self.np.sqrt(104)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_3yr"] = data_adjusted['Returns'].rolling(window=156).std() * self.np.sqrt(156)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_10yr"] = data_adjusted['Returns'].rolling(window=520).std() * self.np.sqrt(520)
+                except:
+                    pass
+            except:
+                raise TypeError("Please check the frequency of the data provided")
+
+            return data_adjusted
+        elif periodicity == 'daily':
+            try:
+                raw_data = dataframe
+                data_adjusted = self.get_returns(raw_data)
+                data_adjusted["returns_plus_one"] = data_adjusted["Returns"]+1
+                data_adjusted["quarterly_returns"] = data_adjusted.rolling(window=63).apply(self.np.prod, raw=True) -1
+                try:
+                    data_adjusted["yearly_returns"] = data_adjusted["returns_plus_one"].rolling(window=252).apply(self.np.prod, raw=True) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["triyearly_returns"] = (data_adjusted["returns_plus_one"].rolling(window=756).apply(self.np.prod, raw=True)**(1/3)) -1
+                except:
+                    pass
+                try:
+                    data_adjusted["tenyear_returns"] = (data_adjusted["returns_plus_one"].rolling(window=2520).apply(self.np.prod, raw=True)**(1/10)) -1
+                except:
+                    pass
+
+                data_adjusted["volatility_yr"] = data_adjusted['Returns'].rolling(window=252).std() * self.np.sqrt(252)
+                try:
+                    data_adjusted["volatility_2yr"] = data_adjusted['Returns'].rolling(window=504).std() * self.np.sqrt(504)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_3yr"] = data_adjusted['Returns'].rolling(window=756).std() * self.np.sqrt(756)
+                except:
+                    pass
+                try:
+                    data_adjusted["volatility_10yr"] = data_adjusted['Returns'].rolling(window=2520).std() * self.np.sqrt(2520)
+                except:
+                    pass
+            except:
+                raise TypeError("Please check the frequency of the data provided")
+
+            return data_adjusted
+      
+            
     def database_connection_service(self, db_name):
         return create_engine(db_name)
 
